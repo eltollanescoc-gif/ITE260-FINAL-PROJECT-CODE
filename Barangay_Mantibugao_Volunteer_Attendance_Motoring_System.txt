@@ -1,0 +1,396 @@
+from datetime import datetime, date
+
+volunteers = []
+attendance_records = []
+
+ACTIVITIES = [
+    "Meeting",
+    "Clean-Up Drive",
+    "Seminar",
+    "Health Program",
+    "Other Community Service"
+]
+
+STATUSES = ["Present", "Absent", "Late"]
+
+
+# -------------------------------
+# INPUT VALIDATION
+# -------------------------------
+
+def get_numbers(prompt):
+    while True:
+        value = input(prompt).strip()
+
+        if value.isdigit():
+            return value
+
+        print("Please enter numbers only.")
+
+
+def get_full_name(prompt):
+    while True:
+        name = " ".join(input(prompt).strip().split())
+        parts = name.split()
+
+        if len(parts) >= 2 and all(part.isalpha() for part in parts):
+            return name
+
+        print("Please enter a valid full name with at least two names.")
+
+
+def get_service_hours():
+    while True:
+        value = input("Enter service hours: ").strip()
+
+        try:
+            hours = float(value)
+
+            if hours >= 0:
+                return hours
+
+            print("Service hours cannot be negative.")
+
+        except ValueError:
+            print("Please enter a valid number.")
+
+
+# -------------------------------
+# FIND VOLUNTEER
+# -------------------------------
+
+def find_volunteer(volunteer_id):
+    for volunteer in volunteers:
+        if volunteer["id"] == volunteer_id:
+            return volunteer
+
+    return None
+
+
+# -------------------------------
+# REGISTER VOLUNTEER
+# -------------------------------
+
+def register_volunteer():
+    print("\\n--- REGISTER VOLUNTEER ---")
+
+    while True:
+        volunteer_id = get_numbers("Enter volunteer ID: ")
+
+        if find_volunteer(volunteer_id):
+            print("That volunteer ID is already registered.")
+        else:
+            break
+
+    while True:
+        name = get_full_name("Enter full name: ")
+
+        name_exists = any(
+            volunteer["name"].lower() == name.lower()
+            for volunteer in volunteers
+        )
+
+        if name_exists:
+            print("That full name is already registered.")
+        else:
+            break
+
+    volunteer = {
+        "id": volunteer_id,
+        "name": name
+    }
+
+    volunteers.append(volunteer)
+
+    print("Volunteer registered successfully!")
+
+
+# -------------------------------
+# SELECT ACTIVITY
+# -------------------------------
+
+def select_activity():
+    print("\\nSelect Activity:")
+
+    for index, activity in enumerate(ACTIVITIES, start=1):
+        print(f"{index}. {activity}")
+
+    while True:
+        choice = get_numbers("Choose activity: ")
+
+        if 1 <= int(choice) <= len(ACTIVITIES):
+            return ACTIVITIES[int(choice) - 1]
+
+        print("Invalid choice. Please select from the list.")
+
+
+# -------------------------------
+# GET ATTENDANCE DATE
+# -------------------------------
+
+def get_attendance_date():
+    while True:
+        date_text = input("Enter date (MM/DD/YY): ").strip()
+
+        try:
+            if len(date_text) != 8:
+                raise ValueError
+
+            if date_text[2] != "/" or date_text[5] != "/":
+                raise ValueError
+
+            month = date_text[:2]
+            day = date_text[3:5]
+            year = date_text[6:8]
+
+            if not (month.isdigit() and day.isdigit() and year.isdigit()):
+                raise ValueError
+
+            attendance_date = datetime.strptime(
+                date_text, "%m/%d/%y"
+            ).date()
+
+            if attendance_date > date.today():
+                print("Attendance date cannot be in the future.")
+            else:
+                return attendance_date.strftime("%m/%d/%y")
+
+        except ValueError:
+            print(
+                "Invalid date. Use MM/DD/YY, "
+                "for example 10/20/26."
+            )
+
+
+# -------------------------------
+# RECORD ATTENDANCE
+# -------------------------------
+
+def record_attendance():
+    if not volunteers:
+        print("\\nNo volunteers registered yet.")
+        return
+
+    print("\\n--- RECORD ATTENDANCE ---")
+
+    volunteer_id = get_numbers("Enter volunteer ID: ")
+    volunteer = find_volunteer(volunteer_id)
+
+    if volunteer is None:
+        print("Volunteer not found.")
+        return
+
+    activity = select_activity()
+    attendance_date = get_attendance_date()
+
+    print("\\nSelect Status:")
+
+    for index, status in enumerate(STATUSES, start=1):
+        print(f"{index}. {status}")
+
+    while True:
+        choice = get_numbers("Choose status: ")
+
+        if 1 <= int(choice) <= len(STATUSES):
+            status = STATUSES[int(choice) - 1]
+            break
+
+        print("Invalid choice. Please select from the list.")
+
+    # Absent volunteers automatically receive 0 service hours.
+    if status == "Absent":
+        service_hours = 0
+    else:
+        service_hours = get_service_hours()
+
+    record = {
+        "id": volunteer_id,
+        "name": volunteer["name"],
+        "activity": activity,
+        "date": attendance_date,
+        "status": status,
+        "hours": service_hours
+    }
+
+    attendance_records.append(record)
+
+    print("Attendance recorded successfully!")
+
+
+# -------------------------------
+# DISPLAY ATTENDANCE RECORDS TABLE
+# -------------------------------
+
+def display_records():
+    if not attendance_records:
+        print("\\nNo attendance records yet.")
+        return
+
+    headers = [
+        "Volunteer ID",
+        "Full Name",
+        "Activity",
+        "Date",
+        "Status",
+        "Hours"
+    ]
+
+    rows = []
+
+    for record in attendance_records:
+        rows.append([
+            record["id"],
+            record["name"],
+            record["activity"],
+            record["date"],
+            record["status"],
+            f'{record["hours"]:.2f}'
+        ])
+
+    widths = [
+        max(
+            len(str(headers[i])),
+            *(len(str(row[i])) for row in rows)
+        )
+        for i in range(len(headers))
+    ]
+
+    border = "+" + "+".join(
+        "-" * (width + 2) for width in widths
+    ) + "+"
+
+    print("\\nATTENDANCE RECORDS")
+    print(border)
+
+    print("| " + " | ".join(
+        str(headers[i]).ljust(widths[i])
+        for i in range(len(headers))
+    ) + " |")
+
+    print(border)
+
+    for row in rows:
+        print("| " + " | ".join(
+            str(row[i]).ljust(widths[i])
+            for i in range(len(headers))
+        ) + " |")
+
+    print(border)
+
+
+# -------------------------------
+# CALCULATE TOTAL SERVICE HOURS
+# -------------------------------
+
+def calculate_total_hours(volunteer_id):
+    total = 0
+
+    for record in attendance_records:
+        if record["id"] == volunteer_id:
+            total += record["hours"]
+
+    return total
+
+
+# -------------------------------
+# DISPLAY SERVICE-HOUR SUMMARY TABLE
+# -------------------------------
+
+def display_service_hours():
+    if not volunteers:
+        print("\\nNo volunteers registered yet.")
+        return
+
+    headers = [
+        "Volunteer ID",
+        "Full Name",
+        "Total Hours"
+    ]
+
+    rows = []
+
+    for volunteer in volunteers:
+        volunteer_id = volunteer["id"]
+        full_name = volunteer["name"]
+        total_hours = calculate_total_hours(volunteer_id)
+
+        rows.append([
+            volunteer_id,
+            full_name,
+            f"{total_hours:.2f}"
+        ])
+
+    widths = [
+        max(
+            len(headers[i]),
+            *(len(row[i]) for row in rows)
+        )
+        for i in range(len(headers))
+    ]
+
+    border = "+" + "+".join(
+        "-" * (width + 2) for width in widths
+    ) + "+"
+
+    print("\\nSERVICE-HOUR SUMMARY")
+    print(border)
+
+    print("| " + " | ".join(
+        headers[i].ljust(widths[i])
+        for i in range(len(headers))
+    ) + " |")
+
+    print(border)
+
+    for row in rows:
+        print("| " + " | ".join(
+            row[i].ljust(widths[i])
+            for i in range(len(headers))
+        ) + " |")
+
+    print(border)
+
+
+# -------------------------------
+# MAIN MENU
+# -------------------------------
+
+def main():
+    while True:
+        print("\\n====================================")
+        print(" BARANGAY VOLUNTEER ATTENDANCE SYSTEM")
+        print("====================================")
+        print("1. Register Volunteer")
+        print("2. Record Attendance")
+        print("3. View Attendance Records")
+        print("4. View Service-Hour Summary")
+        print("5. Exit")
+
+        choice = input("Enter your choice: ").strip()
+
+        if choice == "1":
+            register_volunteer()
+
+        elif choice == "2":
+            record_attendance()
+
+        elif choice == "3":
+            display_records()
+
+        elif choice == "4":
+            display_service_hours()
+
+        elif choice == "5":
+            print("Thank you for using the system!")
+            break
+
+        else:
+            print("Invalid choice. Please select 1 to 5.")
+
+
+# -------------------------------
+# RUN PROGRAM
+# -------------------------------
+
+if __name__ == "__main__":
+    main()
